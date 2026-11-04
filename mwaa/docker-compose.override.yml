@@ -1,0 +1,21 @@
+# Layered on top of AWS's images/airflow/<version>/docker-compose.yaml by mwaa.sh.
+# Files are merged, so only the differences from AWS's setup live here.
+
+x-practice-volumes: &practice-volumes
+  volumes:
+    - ${PRACTICE_ROOT}/dags:/usr/local/airflow/dags
+    - ${PRACTICE_ROOT}/mwaa/plugins:/usr/local/airflow/plugins
+    - ${PRACTICE_ROOT}/mwaa/requirements:/usr/local/airflow/requirements
+    - ${PRACTICE_ROOT}/mwaa/startup:/usr/local/airflow/startup
+
+services:
+  # Port 5432 belongs to the adventureworks container, so the bundled metadata DB moves to 5433.
+  postgres:
+    ports: !override
+      - "5433:5432"
+
+  migratedb: *practice-volumes
+  spy: *practice-volumes
+  webserver: *practice-volumes
+  scheduler: *practice-volumes
+  worker: *practice-volumes

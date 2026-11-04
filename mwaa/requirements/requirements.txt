@@ -1,0 +1,1 @@
+# Same role as requirements.txt in your MWAA S3 bucket. Installed when the containers start.
