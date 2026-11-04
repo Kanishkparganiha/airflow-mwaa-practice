@@ -1,0 +1,71 @@
+services:
+
+  # No postgres here — uses your existing 'adventureworks' postgres:16 container.
+  # Make sure it's running first: docker start adventureworks
+  # Create the airflow DB once: docker exec adventureworks psql -U postgres -c "CREATE DATABASE airflow;"
+
+  airflow-init:
+    image: apache/airflow:2.9.1
+    container_name: airflow-init
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@host.docker.internal:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: version
+    restart: "no"
+
+  airflow-webserver:
+    image: apache/airflow:2.9.1
+    container_name: airflow-webserver
+    restart: unless-stopped
+    ports:
+      - "8085:8080"
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@host.docker.internal:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "local-dev-secret"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: webserver
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - airflow-logs:/opt/airflow/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.1
+    container_name: airflow-scheduler
+    restart: unless-stopped
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@host.docker.internal:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: scheduler
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - airflow-logs:/opt/airflow/logs
+
+volumes:
+  airflow-logs:

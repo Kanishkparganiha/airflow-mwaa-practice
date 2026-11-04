@@ -5,24 +5,48 @@ fills gaps between "I've used it" and "I can explain every decision", and gives 
 
 ---
 
-## Setup — Local Airflow
+## Setup — Docker (no local install)
 
+Airflow runs in Docker. Your `dags/` folder is mounted into the container — edit DAGs locally, they appear in the UI instantly.
+
+Uses your existing `adventureworks` postgres:16 container — no separate Postgres needed.
+
+**Start:**
 ```bash
 cd /Users/kanishk/Downloads/WorkingDir/airflow-practice
 
-python3 -m venv venv && source venv/bin/activate
-pip install "apache-airflow==2.9.1" --constraint \
-  "https://raw.githubusercontent.com/apache/airflow/constraints-2.9.1/constraints-3.12.txt"
+# 1. Start your existing Postgres
+docker start adventureworks
 
-export AIRFLOW_HOME=$(pwd)
-airflow db init
-airflow standalone   # starts webserver + scheduler at localhost:8080 (admin/admin)
+# 2. Create airflow DB (one-time only)
+docker exec adventureworks psql -U postgres -c "CREATE DATABASE airflow;"
+
+# 3. Init Airflow schema + admin user (one-time only)
+docker compose run --rm airflow-init
+
+# 4. Start webserver + scheduler
+docker compose up -d airflow-webserver airflow-scheduler
 ```
 
-Point Airflow at the dags folder:
+UI: http://localhost:8085 — login: `admin` / `admin`
+
+**Stop:**
 ```bash
-# airflow.cfg → dags_folder = /Users/kanishk/Downloads/WorkingDir/airflow-practice/dags
+docker compose down        # stops Airflow containers, adventureworks keeps running
 ```
+
+**Memory (Mac mini 16 GB):**
+| Container          | Cap   |
+|--------------------|-------|
+| adventureworks     | (existing, shared) |
+| airflow-webserver  | 512m  |
+| airflow-scheduler  | 512m  |
+| **Total new**      | **~1 GB** |
+
+**Writing DAGs:**
+- Edit files in `dags/` locally — mounted at `/opt/airflow/dags` inside the container
+- Scheduler picks up changes within ~30s (default `dag_dir_list_interval`)
+- Notebooks are for reading/understanding code only — no need to run pip install cells
 
 ---
 
